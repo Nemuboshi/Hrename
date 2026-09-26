@@ -4,11 +4,13 @@ Hrename is a batch file rename tool for Windows, written in Rust. You add
 files to a list, pick one rename rule, and see the new name of each file
 before you apply it.
 
+![The main window](docs/screenshot.png)
+
 ## Rules
 
 The tool has four rule pages:
 
-- Pattern. Build a new name from a template. `*` inserts the original name.
+- Whole. Build a new name from a template. `*` inserts the original name.
   `#` inserts a serial number. You set the start value, the step, the digit
   count, zero padding, and letter numbering (`a, b, c` instead of `1, 2, 3`).
 - Replace. Replace one string in the file name with another string.
