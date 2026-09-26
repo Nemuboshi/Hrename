@@ -1,0 +1,11 @@
+[package]
+name = "hrename"
+version = "0.1.0"
+edition = "2021"
+description = "Batch file rename tool for Windows"
+license = "MIT"
+
+[dependencies]
+eframe = "0.31"
+rfd = "0.15"
+hrename-core = { path = "../core" }

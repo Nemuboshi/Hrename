@@ -1,0 +1,6 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/gui"]
+
+[profile.release]
+opt-level = 2

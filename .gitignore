@@ -1,0 +1,13 @@
+# Local analysis material. Never commit.
+Rename.exe
+_extracted/
+_analysis/
+docs/analysis.md
+CLAUDE.md
+
+# Rust build output.
+target/
+
+# Editor files.
+.vscode/
+.idea/
