@@ -1,6 +1,7 @@
-//! The GUI. Four rule tabs on the left, the file list with preview and
-//! result columns on the right. The engine is the hrename-core crate and
-//! knows nothing about this file.
+//! The GUI. A tab control with four rule pages on the left, the file list
+//! with preview and result columns on the right, and the action buttons at
+//! the bottom. The engine is the hrename-core crate and knows nothing about
+//! this file.
 
 use std::path::{Path, PathBuf};
 
@@ -14,10 +15,18 @@ fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Batch Rename Files")
-            .with_inner_size([864.0, 540.0]),
+            .with_inner_size([880.0, 560.0])
+            .with_resizable(false),
         ..Default::default()
     };
-    eframe::run_native("hrename", options, Box::new(|_cc| Ok(Box::new(App::default()))))
+    eframe::run_native(
+        "hrename",
+        options,
+        Box::new(|cc| {
+            cc.egui_ctx.set_theme(egui::ThemePreference::Light);
+            Ok(Box::new(App::default()))
+        }),
+    )
 }
 
 /// One row of the file list.
@@ -110,10 +119,11 @@ struct App {
     replace: ReplaceForm,
     add_delete: AddDeleteForm,
     regex: RegexForm,
-    policy: ConflictPolicy,
     conflict: Option<Conflict>,
     apply_all: Option<ConflictPolicy>,
     summary: Option<String>,
+    show_help: bool,
+    renamed_once: bool,
 }
 
 impl Default for App {
@@ -126,10 +136,11 @@ impl Default for App {
             replace: ReplaceForm::default(),
             add_delete: AddDeleteForm::default(),
             regex: RegexForm::default(),
-            policy: ConflictPolicy::Ask,
             conflict: None,
             apply_all: None,
             summary: None,
+            show_help: false,
+            renamed_once: false,
         }
     }
 }
@@ -240,7 +251,7 @@ impl App {
                 let base = if self.tab == Tab::Pattern && self.pattern.auto_resolve {
                     ConflictPolicy::AutoRename
                 } else {
-                    self.policy
+                    ConflictPolicy::Ask
                 };
                 let policy = self.apply_all.unwrap_or(base);
                 match policy {
@@ -299,6 +310,7 @@ impl App {
     }
 
     fn finish_summary(&mut self, done: usize, failed: usize, unchanged: usize, processed: usize) {
+        self.renamed_once = true;
         self.summary = Some(format!(
             "Files processed: {processed}\nRenamed:       {done}\nFailed:        {failed}\nUnchanged:     {unchanged}"
         ));
@@ -379,9 +391,33 @@ impl eframe::App for App {
             self.add_files(dropped);
         }
 
+        // Bottom row: Start, Cancel, Help.
+        egui::TopBottomPanel::bottom("actions").show(ctx, |ui| {
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.add_space(370.0);
+                let start_label = if self.renamed_once {
+                    "Rename Again"
+                } else {
+                    "Start Rename"
+                };
+                if ui.button(start_label).clicked() {
+                    self.apply_all = None;
+                    self.run(0);
+                }
+                if ui.button("Cancel").clicked() {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                if ui.button("Help").clicked() {
+                    self.show_help = true;
+                }
+            });
+        });
+
+        // Left: the tab control with the four rule pages.
         egui::SidePanel::left("rules")
             .resizable(false)
-            .default_width(340.0)
+            .exact_width(380.0)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut self.tab, Tab::Pattern, "Pattern");
@@ -389,75 +425,89 @@ impl eframe::App for App {
                     ui.selectable_value(&mut self.tab, Tab::AddDelete, "Add/Delete");
                     ui.selectable_value(&mut self.tab, Tab::Regex, "Regex");
                 });
-                ui.separator();
-                match self.tab {
-                    Tab::Pattern => pattern_page(ui, &mut self.pattern),
-                    Tab::Replace => replace_page(ui, &mut self.replace),
-                    Tab::AddDelete => add_delete_page(ui, &mut self.add_delete),
-                    Tab::Regex => regex_page(ui, &mut self.regex),
-                }
-                ui.separator();
-                ui.label("File name options");
-                egui::ComboBox::from_id_salt("name_case")
-                    .selected_text(case_label(self.pattern.name_case))
-                    .show_ui(ui, |ui| {
-                        for c in CASES {
-                            ui.selectable_value(&mut self.pattern.name_case, c, case_label(c));
-                        }
-                    });
-                ui.separator();
-                ui.label("When the target name already exists:");
-                ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.policy, ConflictPolicy::Ask, "Ask");
-                    ui.selectable_value(
-                        &mut self.policy,
-                        ConflictPolicy::Overwrite,
-                        "Overwrite",
-                    );
-                });
-                ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.policy, ConflictPolicy::Skip, "Skip");
-                    ui.selectable_value(
-                        &mut self.policy,
-                        ConflictPolicy::AutoRename,
-                        "Rename automatically",
-                    );
+                egui::Frame::group(ui.style()).show(ui, |ui| {
+                    ui.set_min_width(360.0);
+                    match self.tab {
+                        Tab::Pattern => pattern_page(ui, &mut self.pattern),
+                        Tab::Replace => replace_page(ui, &mut self.replace),
+                        Tab::AddDelete => add_delete_page(ui, &mut self.add_delete),
+                        Tab::Regex => regex_page(ui, &mut self.regex),
+                    }
                 });
             });
 
+        // Right: the file list group with the move buttons on its right edge
+        // and the add and remove buttons below it.
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.group(|ui| {
+            egui::Frame::group(ui.style()).show(ui, |ui| {
                 ui.label("File list");
                 ui.horizontal(|ui| {
-                    if ui.button("Add").clicked() {
-                        if let Some(paths) = rfd::FileDialog::new().pick_files() {
-                            self.add_files(paths);
-                        }
-                    }
-                    if ui.button("Remove").clicked() {
-                        if let Some(i) = self.selected {
-                            self.files.remove(i);
-                            self.selected = None;
-                        }
-                    }
-                    if ui.button("Remove all").clicked() {
-                        self.files.clear();
-                        self.selected = None;
-                    }
-                    if ui.button("Up").clicked() {
-                        if let Some(i) = self.selected {
-                            if i > 0 {
-                                self.move_row(i, i - 1);
+                    egui::ScrollArea::vertical()
+                        .min_scrolled_height(360.0)
+                        .max_height(360.0)
+                        .show(ui, |ui| {
+                            egui::Grid::new("file_grid").striped(true).show(ui, |ui| {
+                                ui.strong("Original name");
+                                ui.strong("Preview");
+                                ui.strong("Result");
+                                ui.end_row();
+                                let mut clicked = None;
+                                for i in 0..self.files.len() {
+                                    let row = &self.files[i];
+                                    let old = row
+                                        .path
+                                        .file_name()
+                                        .map(|s| s.to_string_lossy().into_owned())
+                                        .unwrap_or_default();
+                                    let result = match &row.result {
+                                        Some(Ok(s)) => s.clone(),
+                                        Some(Err(s)) => s.clone(),
+                                        None => String::new(),
+                                    };
+                                    let preview = self.new_name(i).unwrap_or_default();
+                                    let sel = self.selected == Some(i);
+                                    if ui.selectable_label(sel, old).clicked() {
+                                        clicked = Some(i);
+                                    }
+                                    ui.label(preview);
+                                    ui.label(result);
+                                    ui.end_row();
+                                }
+                                if let Some(i) = clicked {
+                                    self.selected = Some(i);
+                                }
+                            });
+                        });
+                    ui.vertical(|ui| {
+                        ui.add_space(60.0);
+                        let n = self.files.len();
+                        if ui.small_button("⤒").clicked() {
+                            if let Some(i) = self.selected {
+                                self.move_row(i, 0);
                             }
                         }
-                    }
-                    if ui.button("Down").clicked() {
-                        if let Some(i) = self.selected {
-                            if i + 1 < self.files.len() {
-                                self.move_row(i, i + 1);
+                        if ui.small_button("↑").clicked() {
+                            if let Some(i) = self.selected {
+                                if i > 0 {
+                                    self.move_row(i, i - 1);
+                                }
                             }
                         }
-                    }
+                        if ui.small_button("↓").clicked() {
+                            if let Some(i) = self.selected {
+                                if i + 1 < n {
+                                    self.move_row(i, i + 1);
+                                }
+                            }
+                        }
+                        if ui.small_button("⤓").clicked() {
+                            if let Some(i) = self.selected {
+                                if n > 0 {
+                                    self.move_row(i, n - 1);
+                                }
+                            }
+                        }
+                    });
                 });
                 if self.files.is_empty() {
                     ui.label(
@@ -466,51 +516,26 @@ impl eframe::App for App {
                          (2) Drop files onto this window with the mouse",
                     );
                 }
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    egui::Grid::new("file_grid").striped(true).show(ui, |ui| {
-                        ui.strong("Original name");
-                        ui.strong("Preview");
-                        ui.strong("Result");
-                        ui.end_row();
-                        let mut clicked = None;
-                        for i in 0..self.files.len() {
-                            let row = &self.files[i];
-                            let old = row
-                                .path
-                                .file_name()
-                                .map(|s| s.to_string_lossy().into_owned())
-                                .unwrap_or_default();
-                            let result = match &row.result {
-                                Some(Ok(s)) => s.clone(),
-                                Some(Err(s)) => s.clone(),
-                                None => String::new(),
-                            };
-                            let preview = self.new_name(i).unwrap_or_default();
-                            let sel = self.selected == Some(i);
-                            if ui.selectable_label(sel, old).clicked() {
-                                clicked = Some(i);
-                            }
-                            ui.label(preview);
-                            ui.label(result);
-                            ui.end_row();
+                ui.horizontal(|ui| {
+                    ui.add_space(24.0);
+                    if ui.button("Add").clicked() {
+                        if let Some(paths) = rfd::FileDialog::new().pick_files() {
+                            self.add_files(paths);
                         }
-                        if let Some(i) = clicked {
-                            self.selected = Some(i);
-                        }
-                    });
-                });
-            });
-            ui.horizontal(|ui| {
-                if ui.button("Start rename").clicked() {
-                    self.apply_all = None;
-                    self.run(0);
-                }
-                if ui.button("Clear results").clicked() {
-                    for r in &mut self.files {
-                        r.result = None;
                     }
-                    self.summary = None;
-                }
+                    ui.add_space(24.0);
+                    if ui.button("Remove").clicked() {
+                        if let Some(i) = self.selected {
+                            self.files.remove(i);
+                            self.selected = None;
+                        }
+                    }
+                    ui.add_space(24.0);
+                    if ui.button("Remove All").clicked() {
+                        self.files.clear();
+                        self.selected = None;
+                    }
+                });
             });
         });
 
@@ -540,7 +565,7 @@ impl eframe::App for App {
                         if ui.button("Skip").clicked() {
                             choice = Some(ConflictPolicy::Skip);
                         }
-                        if ui.button("Rename automatically").clicked() {
+                        if ui.button("Auto Rename").clicked() {
                             choice = Some(ConflictPolicy::AutoRename);
                         }
                     });
@@ -553,6 +578,7 @@ impl eframe::App for App {
             }
         }
 
+        // Summary dialog at the end of a run.
         if let Some(text) = &self.summary {
             let mut open = true;
             egui::Window::new("Batch Rename Files")
@@ -566,30 +592,54 @@ impl eframe::App for App {
                 self.summary = None;
             }
         }
+
+        // Help dialog.
+        if self.show_help {
+            let mut open = true;
+            egui::Window::new("Help")
+                .collapsible(false)
+                .resizable(false)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.label("Pattern page: * inserts the original name, # inserts");
+                    ui.label("the serial. For example, A_# produces A_<number>.");
+                    ui.label("Replace page: replace a string in the file name.");
+                    ui.label("Add/Delete page: add or remove text in the name.");
+                    ui.label("Regex page: replace a regular expression match.");
+                    ui.label("Use $1 or ${name} for capture groups.");
+                });
+            if !open {
+                self.show_help = false;
+            }
+        }
     }
 }
 
 fn pattern_page(ui: &mut egui::Ui, f: &mut PatternForm) {
     ui.label("Naming rule:");
     ui.text_edit_singleline(&mut f.pattern);
+    ui.add_space(8.0);
     ui.label("Use * to insert the original file name");
     ui.label("Use # to insert a number or letter at that position");
+    ui.add_space(8.0);
     ui.horizontal(|ui| {
         ui.label("Start at");
         ui.add(egui::DragValue::new(&mut f.start));
     });
     ui.horizontal(|ui| {
-        ui.label("Step");
+        ui.label("Step    ");
         ui.add(egui::DragValue::new(&mut f.step));
     });
     ui.horizontal(|ui| {
-        ui.label("Digits");
+        ui.label("Digits ");
         ui.add(egui::DragValue::new(&mut f.width).range(1..=16));
     });
+    ui.add_space(4.0);
     ui.horizontal(|ui| {
         ui.checkbox(&mut f.pad, "Pad short numbers");
         ui.checkbox(&mut f.letters, "Letter numbering");
         egui::ComboBox::from_id_salt("letter_case")
+            .width(90.0)
             .selected_text(match f.letter_case {
                 LetterCase::Lower => "Lowercase",
                 LetterCase::Upper => "Uppercase",
@@ -601,15 +651,27 @@ fn pattern_page(ui: &mut egui::Ui, f: &mut PatternForm) {
     });
     ui.horizontal(|ui| {
         ui.checkbox(&mut f.change_ext, "Change extension to");
-        ui.text_edit_singleline(&mut f.extension);
+        ui.add(egui::TextEdit::singleline(&mut f.extension).desired_width(80.0));
     });
+    ui.add_space(4.0);
+    ui.label("File name options");
+    egui::ComboBox::from_id_salt("name_case")
+        .width(250.0)
+        .selected_text(case_label(f.name_case))
+        .show_ui(ui, |ui| {
+            for c in CASES {
+                ui.selectable_value(&mut f.name_case, c, case_label(c));
+            }
+        });
+    ui.add_space(4.0);
     ui.checkbox(&mut f.auto_resolve, "Resolve name conflicts automatically");
 }
 
 fn replace_page(ui: &mut egui::Ui, f: &mut ReplaceForm) {
     ui.label("Replace characters in the file name");
+    ui.add_space(8.0);
     ui.horizontal(|ui| {
-        ui.label("Find");
+        ui.label("Find         ");
         ui.text_edit_singleline(&mut f.from);
     });
     ui.horizontal(|ui| {
@@ -618,9 +680,42 @@ fn replace_page(ui: &mut egui::Ui, f: &mut ReplaceForm) {
     });
 }
 
+fn add_delete_page(ui: &mut egui::Ui, f: &mut AddDeleteForm) {
+    ui.horizontal(|ui| {
+        ui.label("Add before name ");
+        ui.add(egui::TextEdit::singleline(&mut f.prefix).desired_width(200.0));
+    });
+    ui.horizontal(|ui| {
+        ui.label("Add after name  ");
+        ui.add(egui::TextEdit::singleline(&mut f.suffix).desired_width(200.0));
+    });
+    ui.add_space(4.0);
+    ui.checkbox(&mut f.ext_add, "Insert at a position");
+    ui.horizontal(|ui| {
+        ui.label("From character");
+        ui.add(egui::DragValue::new(&mut f.insert_pos).range(1..=999));
+        ui.label("onwards, insert");
+    });
+    ui.add(egui::TextEdit::singleline(&mut f.insert_text).desired_width(200.0));
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.label("Delete from name");
+        ui.add(egui::TextEdit::singleline(&mut f.delete_text).desired_width(180.0));
+    });
+    ui.checkbox(&mut f.ext_delete, "Delete a range");
+    ui.horizontal(|ui| {
+        ui.label("From character");
+        ui.add(egui::DragValue::new(&mut f.delete_start).range(1..=999));
+        ui.label("delete");
+        ui.add(egui::DragValue::new(&mut f.delete_count).range(1..=999));
+        ui.label("characters");
+    });
+}
+
 fn regex_page(ui: &mut egui::Ui, f: &mut RegexForm) {
     ui.label("Find (regular expression)");
-    ui.text_edit_singleline(&mut f.from);
+    ui.add(egui::TextEdit::singleline(&mut f.from).desired_width(330.0));
+    ui.add_space(4.0);
     match Regex::new(&f.from) {
         Ok(_) => {
             ui.label("Use $1 or ${name} in the replacement for capture groups.");
@@ -629,41 +724,9 @@ fn regex_page(ui: &mut egui::Ui, f: &mut RegexForm) {
             ui.colored_label(egui::Color32::RED, format!("Invalid expression: {e}"));
         }
     }
-    ui.horizontal(|ui| {
-        ui.label("Replace with");
-        ui.text_edit_singleline(&mut f.to);
-    });
-    ui.label("Example: find (\\d+)-(.*) and replace with $2_$1");
-}
-
-fn add_delete_page(ui: &mut egui::Ui, f: &mut AddDeleteForm) {
-    ui.horizontal(|ui| {
-        ui.label("Add before name");
-        ui.text_edit_singleline(&mut f.prefix);
-    });
-    ui.horizontal(|ui| {
-        ui.label("Add after name");
-        ui.text_edit_singleline(&mut f.suffix);
-    });
-    ui.checkbox(&mut f.ext_add, "Insert at a position");
-    ui.horizontal(|ui| {
-        ui.label("Starting at character");
-        ui.add(egui::DragValue::new(&mut f.insert_pos).range(1..=999));
-        ui.label("insert");
-    });
-    ui.text_edit_singleline(&mut f.insert_text);
-    ui.horizontal(|ui| {
-        ui.label("Delete from name");
-        ui.text_edit_singleline(&mut f.delete_text);
-    });
-    ui.checkbox(&mut f.ext_delete, "Delete a range");
-    ui.horizontal(|ui| {
-        ui.label("Starting at character");
-        ui.add(egui::DragValue::new(&mut f.delete_start).range(1..=999));
-    });
-    ui.horizontal(|ui| {
-        ui.label("Delete");
-        ui.add(egui::DragValue::new(&mut f.delete_count).range(1..=999));
-        ui.label("characters");
-    });
+    ui.add_space(4.0);
+    ui.label("Replace with");
+    ui.add(egui::TextEdit::singleline(&mut f.to).desired_width(330.0));
+    ui.add_space(4.0);
+    ui.label("Example: find (\\w+)_(\\d+) and replace with $2_$1");
 }
