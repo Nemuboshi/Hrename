@@ -130,23 +130,6 @@ function showTab(tab) {
     refresh();
 }
 
-// Pin every rule page to the height of the tallest one. Tab switches then
-// never change the layout height, so no page ever scrolls on its own.
-function fixPanelHeights() {
-    const pages = document.querySelectorAll(".page");
-    let max = 0;
-    pages.forEach((p) => {
-        p.style.minHeight = "0";
-        const wasHidden = p.style.display !== "block";
-        if (wasHidden) p.style.display = "block";
-        max = Math.max(max, p.scrollHeight);
-        if (wasHidden) p.style.display = "";
-    });
-    pages.forEach((p) => {
-        p.style.minHeight = max + "px";
-    });
-}
-
 // The window is not user-resizable. It grows to fit the content, once, at
 // startup. The frame size is unknown to JS (WebView2 reports outerWidth
 // equal to innerWidth), so this loop reads the real window size from Go,
@@ -360,6 +343,5 @@ window.addEventListener("DOMContentLoaded", () => {
 
     syncDependent();
     refresh();
-    fixPanelHeights();
     requestAnimationFrame(() => fitWindow());
 });

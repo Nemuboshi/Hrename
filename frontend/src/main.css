@@ -88,19 +88,28 @@ input, select, textarea {
 
 /* ---------- rule pages ---------- */
 
+/* All pages share one grid cell. The box is always as tall as the tallest
+   page, so switching tabs cannot change the layout height at all. */
+#pages {
+    display: grid;
+    flex: 1;
+    min-height: 0;
+}
+
 .page {
-    display: none;
+    grid-area: 1 / 1;
     background: #ffffff;
     border: 1px solid #d0d0d0;
     border-radius: 6px;
     padding: 12px;
     overflow-y: auto;
-    min-height: 0;
-    flex: 1;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .page.active {
-    display: block;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .block-label {
