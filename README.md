@@ -1,8 +1,9 @@
 # Hrename
 
-Hrename is a batch file rename tool for Windows, written in Rust. You add
-files to a list, pick one rename rule, and see the new name of each file
-before you apply it.
+Hrename is a batch file rename tool for Windows. The backend is Go, the
+window is a Wails webview, and the front end is plain HTML, CSS, and
+JavaScript. You add files to a list, pick one rename rule, and see the new
+name of each file before you apply it.
 
 ![The main window](docs/screenshot.png)
 
@@ -26,26 +27,29 @@ new file automatically.
 
 ## Build
 
-You need a Rust toolchain from rustup.rs.
+You need Go and the Wails CLI:
 
 ```
-cargo build -p hrename --release
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+wails build
 ```
 
-The executable is `target/release/hrename.exe`.
+The executable is `build/bin/hrename.exe`. The front end needs no npm install
+and no bundler. Wails embeds `frontend/src` straight into the binary.
 
 ## Test
 
 The engine tests are fast because they do not build the GUI.
 
 ```
-cargo test -p hrename-core
+go test ./internal/rename
 ```
 
 ## Layout
 
-- `crates/core` — the rename engine as a library, with unit tests.
-- `crates/gui` — the egui window on top of the engine.
+- `internal/rename` — the rename engine, pure logic, no file system access.
+- `app.go` — the bound state between the engine and the page.
+- `frontend/src` — the HTML, CSS, and JavaScript of the window.
 
 ## License
 

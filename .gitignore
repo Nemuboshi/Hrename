@@ -5,8 +5,11 @@ _analysis/
 docs/analysis.md
 CLAUDE.md
 
-# Rust build output.
-target/
+# Go build output.
+build/bin/
+
+# Generated Wails JS bindings.
+frontend/wailsjs/
 
 # Editor files.
 .vscode/

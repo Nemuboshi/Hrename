@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Batch Rename Files</title>
+    <link href="/main.css" rel="stylesheet"/>
+</head>
+<body>
+<div id="layout">
+    <section id="rules">
+        <nav id="tabs">
+            <button class="tab active" data-tab="whole">Whole</button>
+            <button class="tab" data-tab="replace">Replace</button>
+            <button class="tab" data-tab="adddelete">Add/Delete</button>
+            <button class="tab" data-tab="regex">Regex</button>
+        </nav>
+
+        <div class="page active" id="page-whole">
+            <label class="block-label" for="f-pattern">Naming rule:</label>
+            <input type="text" id="f-pattern" placeholder="Type A_# to produce A_&lt;number&gt;"/>
+            <p class="hint">Use * to insert the original file name<br/>Use # to insert a number or letter at that position</p>
+            <div class="form-grid">
+                <label for="f-start">Start at</label><input type="number" id="f-start" value="1"/>
+                <label for="f-step">Step</label><input type="number" id="f-step" value="1"/>
+                <label for="f-width">Digits</label><input type="number" id="f-width" value="1" min="1" max="16"/>
+            </div>
+            <div class="checks">
+                <label><input type="checkbox" id="f-pad" checked/> Pad short numbers</label>
+                <label><input type="checkbox" id="f-letters"/> Letter numbering</label>
+                <select id="f-letter-case" disabled>
+                    <option value="0">Lowercase</option>
+                    <option value="1">Uppercase</option>
+                </select>
+            </div>
+            <div class="checks">
+                <label><input type="checkbox" id="f-change-ext"/> Change extension to</label>
+                <input type="text" id="f-extension" class="small-input" disabled/>
+            </div>
+            <label class="block-label" for="f-name-case">File name options</label>
+            <select id="f-name-case">
+                <option value="0">No change</option>
+                <option value="1">Lowercase file name</option>
+                <option value="2">Lowercase extension</option>
+                <option value="3">Lowercase name and extension</option>
+                <option value="4">Uppercase file name</option>
+                <option value="5">Uppercase extension</option>
+                <option value="6">Uppercase name and extension</option>
+            </select>
+            <div class="checks">
+                <label><input type="checkbox" id="f-auto-resolve"/> Resolve name conflicts automatically</label>
+            </div>
+        </div>
+
+        <div class="page" id="page-replace">
+            <label class="block-label">Replace characters in the file name</label>
+            <p class="hint">The extension is included.</p>
+            <div class="form-grid">
+                <label for="f-from-rep">Find</label><input type="text" id="f-from-rep"/>
+                <label for="f-to-rep">Replace with</label><input type="text" id="f-to-rep"/>
+            </div>
+        </div>
+
+        <div class="page" id="page-adddelete">
+            <div class="form-grid">
+                <label for="f-prefix">Add before name</label><input type="text" id="f-prefix"/>
+                <label for="f-suffix">Add after name</label><input type="text" id="f-suffix"/>
+            </div>
+            <div class="checks">
+                <label><input type="checkbox" id="f-ext-add"/> Insert at a position</label>
+            </div>
+            <div class="sub" id="insert-block">
+                <div class="inline">
+                    <span>From character</span><input type="number" id="f-insert-pos" value="1" min="1"/>
+                    <span>onwards, insert</span>
+                </div>
+                <input type="text" id="f-insert-text"/>
+            </div>
+            <div class="form-grid">
+                <label for="f-delete-text">Delete from name</label><input type="text" id="f-delete-text"/>
+            </div>
+            <div class="checks">
+                <label><input type="checkbox" id="f-ext-delete"/> Delete a range</label>
+            </div>
+            <div class="sub inline" id="delete-block">
+                <span>From character</span><input type="number" id="f-delete-start" value="1" min="1"/>
+                <span>delete</span><input type="number" id="f-delete-count" value="1" min="1"/>
+                <span>characters</span>
+            </div>
+        </div>
+
+        <div class="page" id="page-regex">
+            <label class="block-label" for="f-from-regex">Find (regular expression)</label>
+            <input type="text" id="f-from-regex"/>
+            <p class="hint" id="regex-note">Use $1 or ${name} in the replacement for capture groups.</p>
+            <label class="block-label" for="f-to-regex">Replace with</label>
+            <input type="text" id="f-to-regex"/>
+            <p class="hint">Example: find (\w+)_(\d+) and replace with $2_$1</p>
+        </div>
+    </section>
+
+    <section id="list-panel">
+        <div id="list-head">File list</div>
+        <div id="list-body">
+            <table id="file-table">
+                <thead>
+                <tr><th>Original name</th><th>Preview</th><th class="col-result">Result</th></tr>
+                </thead>
+                <tbody id="file-tbody"></tbody>
+            </table>
+            <div id="empty-note" class="hidden">
+                <p>The list is empty.</p>
+                <p>Click Add to pick files, or drop files onto this window.</p>
+            </div>
+            <div id="move-col">
+                <button id="mv-top" title="Move to top" disabled><span class="tri up"></span><span class="tri up"></span></button>
+                <button id="mv-up" title="Move up" disabled><span class="tri up"></span></button>
+                <button id="mv-down" title="Move down" disabled><span class="tri down"></span></button>
+                <button id="mv-bottom" title="Move to bottom" disabled><span class="tri down"></span><span class="tri down"></span></button>
+            </div>
+        </div>
+        <div id="list-buttons">
+            <button id="btn-add">Add</button>
+            <button id="btn-remove" disabled>Remove</button>
+            <button id="btn-remove-all" disabled>Remove All</button>
+        </div>
+    </section>
+</div>
+
+<footer id="actions">
+    <button id="btn-start" disabled>Start Rename</button>
+    <button id="btn-cancel">Cancel</button>
+    <button id="btn-help">Help</button>
+</footer>
+
+<div class="modal-backdrop hidden" id="modal-conflict">
+    <div class="modal">
+        <h2>Name conflict</h2>
+        <p id="conflict-text"></p>
+        <p>Do you want to resolve this name conflict automatically?</p>
+        <label class="checks"><input type="checkbox" id="conflict-all"/> Apply to all</label>
+        <div class="modal-buttons">
+            <button data-conflict="overwrite">Overwrite</button>
+            <button data-conflict="skip">Skip</button>
+            <button data-conflict="autorename">Auto Rename</button>
+            <button data-conflict="cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop hidden" id="modal-summary">
+    <div class="modal">
+        <h2>Summary</h2>
+        <pre id="summary-text"></pre>
+        <div class="modal-buttons">
+            <button id="summary-ok">OK</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop hidden" id="modal-help">
+    <div class="modal">
+        <h2>Help</h2>
+        <p>Whole page: * inserts the original name, # inserts the serial.
+            For example, A_# produces A_&lt;number&gt;.</p>
+        <p>Replace page: replace a string in the file name.</p>
+        <p>Add/Delete page: add or remove text in the name.</p>
+        <p>Regex page: replace a regular expression match. Use $1 or ${name} for capture groups.</p>
+        <div class="modal-buttons">
+            <button id="help-ok">Close</button>
+        </div>
+    </div>
+</div>
+
+<script src="/main.js"></script>
+</body>
+</html>

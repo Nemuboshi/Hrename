@@ -1,0 +1,9 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Batch Rename Files",
+  "outputfilename": "hrename",
+  "wailsjsdir": "./frontend",
+  "author": {
+    "name": "Nemuboshi"
+  }
+}
