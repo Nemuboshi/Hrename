@@ -128,6 +128,45 @@ function showTab(tab) {
         p.classList.toggle("active", p.id === "page-" + tab);
     });
     refresh();
+    requestAnimationFrame(() => fitWindow());
+}
+
+// The window is not user-resizable. It grows to fit the content. The frame
+// size is unknown to JS (WebView2 reports outerWidth equal to innerWidth),
+// so this loop reads the real window size from Go, adds the viewport
+// shortfall, and writes it back. Each pass removes the shortfall exactly,
+// so it converges in a few passes at any DPI. WindowGetSize returns a
+// [width, height] array because the Go method has two return values.
+let fitPasses = 0;
+
+async function fitWindow() {
+    if (!window.runtime || fitPasses > 8) return;
+    const shortW = Math.max(0, document.body.scrollWidth - window.innerWidth);
+    const shortH = Math.max(0, document.body.scrollHeight - window.innerHeight);
+    if (shortW === 0 && shortH === 0) {
+        fitPasses = 0;
+        return;
+    }
+    fitPasses++;
+    try {
+        // WindowGetSize resolves to {w, h} in physical pixels. That is the
+        // shape the Go dispatcher returns, not the TypeScript stub.
+        const size = await window.runtime.WindowGetSize();
+        const curW = size.w;
+        const curH = size.h;
+        if (!Number.isFinite(curW) || !Number.isFinite(curH)) return;
+        // The shortfall is in CSS pixels. WindowSetSize takes physical
+        // pixels, so scale it by the device pixel ratio.
+        const dpr = window.devicePixelRatio || 1;
+        window.runtime.WindowSetSize(
+            Math.round(curW + shortW * dpr),
+            Math.round(curH + shortH * dpr)
+        );
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+    setTimeout(fitWindow, 120);
 }
 
 // ---------- dependent controls ----------
@@ -306,4 +345,5 @@ window.addEventListener("DOMContentLoaded", () => {
 
     syncDependent();
     refresh();
+    requestAnimationFrame(() => fitWindow());
 });

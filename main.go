@@ -19,9 +19,7 @@ func main() {
 		Title:            "Batch Rename Files",
 		Width:            900,
 		Height:           520,
-		MinWidth:         820,
-		MinHeight:        440,
-		DisableResize:    false,
+		DisableResize:    true,
 		BackgroundColour: &options.RGBA{R: 240, G: 240, B: 240, A: 255},
 		AssetServer: &assetserver.Options{
 			Assets: assets,

@@ -4,8 +4,7 @@
     padding: 0;
 }
 
-html, body {
-    height: 100%;
+html {
     overflow: hidden;
 }
 
@@ -16,6 +15,14 @@ body {
     background: #f3f3f3;
     display: flex;
     flex-direction: column;
+    user-select: none;
+    /* The window fits the content. Body sizes to its children, and the
+       JS at startup sets the window to this box plus the frame. */
+    width: fit-content;
+}
+
+input, select, textarea {
+    user-select: text;
 }
 
 /* ---------- main layout ---------- */
@@ -38,7 +45,8 @@ body {
 }
 
 #list-panel {
-    flex: 1;
+    flex: none;
+    width: 520px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -60,7 +68,7 @@ body {
     background: none;
     padding: 5px 12px;
     font: inherit;
-    cursor: pointer;
+    cursor: default;
     border-radius: 4px 4px 0 0;
     color: #444;
 }
@@ -195,7 +203,9 @@ input:disabled, select:disabled {
 }
 
 #list-body {
-    flex: 1;
+    /* Fixed height. Rows scroll inside instead of stretching the list. */
+    height: 330px;
+    flex: none;
     display: flex;
     gap: 8px;
     min-height: 0;
@@ -205,11 +215,18 @@ input:disabled, select:disabled {
     padding: 8px;
 }
 
-#file-table {
+/* The table lives in a scroll wrapper. Rows keep their natural height. */
+#table-wrap {
+    position: relative;
     flex: 1;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+#file-table {
+    width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    min-width: 0;
 }
 
 #file-table th, #file-table td {
@@ -224,6 +241,10 @@ input:disabled, select:disabled {
     color: #333;
     border-bottom: 2px solid #d0d0d0;
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    z-index: 1;
 }
 
 #file-table th.col-result, #file-table td.col-result {
@@ -243,7 +264,8 @@ input:disabled, select:disabled {
 }
 
 #empty-note {
-    flex: 1;
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -271,7 +293,7 @@ input:disabled, select:disabled {
     align-items: center;
     justify-content: center;
     gap: 1px;
-    cursor: pointer;
+    cursor: default;
 }
 
 #move-col button:disabled {
@@ -310,7 +332,7 @@ button {
     border: 1px solid #c5c5c5;
     border-radius: 4px;
     background: #fafafa;
-    cursor: pointer;
+    cursor: default;
     min-width: 80px;
 }
 
@@ -388,7 +410,7 @@ button {
     border: 1px solid #c5c5c5;
     border-radius: 4px;
     background: #fafafa;
-    cursor: pointer;
+    cursor: default;
 }
 
 .modal-buttons button:hover {
