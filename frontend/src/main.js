@@ -290,11 +290,18 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("summary-ok").addEventListener("click", () => closeModal("modal-summary"));
     document.getElementById("help-ok").addEventListener("click", () => closeModal("modal-help"));
 
+    // Dropped files. The second argument false means the whole window
+    // accepts drops, no per-element --wails-drop-target style needed.
+    // This JS call also stops WebView2 from treating the drop as a download.
     if (window.runtime) {
-        window.runtime.EventsOn("files-changed", async () => {
-            const rows = await App().Preview();
-            renderRows(rows);
-        });
+        window.runtime.OnFileDrop(async (_x, _y, paths) => {
+            if (!paths || paths.length === 0) return;
+            const added = await App().AddPaths(paths);
+            if (added > 0) {
+                const rows = await App().Preview();
+                renderRows(rows);
+            }
+        }, false);
     }
 
     syncDependent();

@@ -31,8 +31,7 @@ func main() {
 			app,
 		},
 		DragAndDrop: &options.DragAndDrop{
-			EnableFileDrop:     true,
-			DisableWebViewDrop: true,
+			EnableFileDrop: true,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,

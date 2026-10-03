@@ -93,11 +93,12 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	runtime.OnFileDrop(ctx, func(_, _ int, paths []string) {
-		if a.addPaths(paths) > 0 {
-			runtime.EventsEmit(ctx, "files-changed")
-		}
-	})
+}
+
+// AddPaths adds dropped or picked file paths to the list. It returns the
+// number of files actually added. Duplicates and directories are skipped.
+func (a *App) AddPaths(paths []string) int {
+	return a.addPaths(paths)
 }
 
 // rule builds the active rule from the form state. An invalid regex makes
