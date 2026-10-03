@@ -128,19 +128,34 @@ function showTab(tab) {
         p.classList.toggle("active", p.id === "page-" + tab);
     });
     refresh();
-    requestAnimationFrame(() => fitWindow());
 }
 
-// The window is not user-resizable. It grows to fit the content. The frame
-// size is unknown to JS (WebView2 reports outerWidth equal to innerWidth),
-// so this loop reads the real window size from Go, adds the viewport
-// shortfall, and writes it back. Each pass removes the shortfall exactly,
-// so it converges in a few passes at any DPI. WindowGetSize returns a
-// [width, height] array because the Go method has two return values.
+// Pin every rule page to the height of the tallest one. Tab switches then
+// never change the layout height, so no page ever scrolls on its own.
+function fixPanelHeights() {
+    const pages = document.querySelectorAll(".page");
+    let max = 0;
+    pages.forEach((p) => {
+        p.style.minHeight = "0";
+        const wasHidden = p.style.display !== "block";
+        if (wasHidden) p.style.display = "block";
+        max = Math.max(max, p.scrollHeight);
+        if (wasHidden) p.style.display = "";
+    });
+    pages.forEach((p) => {
+        p.style.minHeight = max + "px";
+    });
+}
+
+// The window is not user-resizable. It grows to fit the content, once, at
+// startup. The frame size is unknown to JS (WebView2 reports outerWidth
+// equal to innerWidth), so this loop reads the real window size from Go,
+// adds the viewport shortfall, and writes it back. Each pass removes the
+// shortfall exactly, so it converges in a few passes at any DPI.
 let fitPasses = 0;
 
 async function fitWindow() {
-    if (!window.runtime || fitPasses > 8) return;
+    if (!window.runtime || fitPasses > 4) return;
     const shortW = Math.max(0, document.body.scrollWidth - window.innerWidth);
     const shortH = Math.max(0, document.body.scrollHeight - window.innerHeight);
     if (shortW === 0 && shortH === 0) {
@@ -345,5 +360,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     syncDependent();
     refresh();
+    fixPanelHeights();
     requestAnimationFrame(() => fitWindow());
 });

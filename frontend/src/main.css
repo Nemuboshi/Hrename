@@ -96,6 +96,7 @@ input, select, textarea {
     padding: 12px;
     overflow-y: auto;
     min-height: 0;
+    flex: 1;
 }
 
 .page.active {
@@ -203,12 +204,12 @@ input:disabled, select:disabled {
 }
 
 #list-body {
-    /* Fixed height. Rows scroll inside instead of stretching the list. */
-    height: 330px;
-    flex: none;
+    /* Fills the column between the heading and the buttons. The column
+       height comes from the left panel, so both bottoms align. */
+    flex: 1;
+    min-height: 200px;
     display: flex;
     gap: 8px;
-    min-height: 0;
     background: #ffffff;
     border: 1px solid #d0d0d0;
     border-radius: 6px;
