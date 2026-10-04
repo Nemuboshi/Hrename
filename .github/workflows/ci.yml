@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The GUI package touches the file system in ways that differ per
+        # platform (case-insensitive paths on Windows), so tests run on
+        # both. macOS is covered by the release builds.
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install GTK/WebKit headers (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: gofmt check
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)"
+
+      - name: Compile frontend (tsc)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test with race + coverage gate (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          go test -race -short -covermode=atomic -coverprofile=cover.out ./...
+          total=$(go tool cover -func=cover.out | awk '/^total/ {gsub("%", "", $3); print $3}')
+          echo "statement coverage: ${total}%"
+          awk -v t="$total" 'BEGIN { exit !(t >= 90) }' \
+            || { echo "coverage below the 90% gate"; exit 1; }
+
+      - name: go test
+        if: runner.os != 'Linux'
+        run: go test ./...

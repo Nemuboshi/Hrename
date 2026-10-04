@@ -1,0 +1,81 @@
+name: Release
+
+# Push a tag like v1.0.0 and binaries for all three platforms are built
+# and attached to a GitHub Release. Wails cannot cross-compile (each
+# target needs its native webview toolchain), so one job per OS.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-amd64
+          - os: ubuntu-latest
+            label: linux-amd64
+          - os: macos-latest
+            label: macos-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install GTK/WebKit (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Install Wails CLI
+        # Keep this version equal to the one in go.mod.
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: wails build -clean
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive build\bin\renamelite.exe renamelite-${{ matrix.label }}.zip
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf renamelite-${{ matrix.label }}.tar.gz -C build/bin renamelite
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        working-directory: build/bin
+        run: zip -qry ../../renamelite-${{ matrix.label }}.zip renamelite.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renamelite-${{ matrix.label }}
+          path: renamelite-${{ matrix.label }}.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: renamelite-*
+          generate_release_notes: true
