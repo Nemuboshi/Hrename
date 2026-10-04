@@ -56,7 +56,8 @@ jobs:
 
       - name: Package (Linux)
         if: runner.os == 'Linux'
-        run: tar -czf renamelite-${{ matrix.label }}.tar.gz -C build/bin renamelite
+        working-directory: build/bin
+        run: zip -9 ../../renamelite-${{ matrix.label }}.zip renamelite
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
