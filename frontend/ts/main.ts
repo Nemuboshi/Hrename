@@ -181,9 +181,10 @@ function updateButtons(): void {
 // ---------- column resizing ----------
 
 // The table is table-layout: fixed with a colgroup, so a column's width is
-// the width of its <col>. Each draggable handle moves width between its
-// two neighbours and keeps their sum, so the table never overflows. The
-// Result column is fixed; only its two neighbours resize.
+// the width of its <col>. A handle changes only the column to its left;
+// the fixed layout grows the table past the panel when the columns' sum
+// exceeds it, and the wrapper turns that into a horizontal scrollbar —
+// the point is letting a long file name show in full.
 const COL_MIN = 80;
 const RESULT_WIDTH = 90;
 
@@ -210,23 +211,31 @@ function initColgroup(): void {
     // the leftover space evenly. Widths appear on first drag.
 }
 
+// Before one column grows, pin every column to its measured width. Free
+// (auto) columns would otherwise absorb the growth by shrinking to zero,
+// and the grown column's name is exactly "the user wants to read it".
+function freezeWidths(table: HTMLTableElement): void {
+    for (let i = 0; i < 3; i++) {
+        colgroup[i].style.width = headerCellWidth(table, i) + "px";
+    }
+}
+
 function initColumnResize(): void {
     const table = document.getElementById("file-table") as HTMLTableElement;
     table.querySelectorAll<HTMLElement>(".col-split").forEach((handle) => {
         const left = Number(handle.dataset.col); // column index left of the handle
         handle.addEventListener("pointerdown", (ev) => {
             ev.preventDefault();
+            freezeWidths(table);
             const startX = ev.clientX;
             const w0 = headerCellWidth(table, left);
-            const w1 = headerCellWidth(table, left + 1);
             document.body.classList.add("col-resizing");
             handle.classList.add("active");
             handle.setPointerCapture(ev.pointerId);
 
             const move = (e: PointerEvent) => {
-                const delta = Math.max(COL_MIN - w0, Math.min(e.clientX - startX, w1 - COL_MIN));
-                colgroup[left].style.width = w0 + delta + "px";
-                colgroup[left + 1].style.width = w1 - delta + "px";
+                const w = Math.max(COL_MIN, w0 + (e.clientX - startX));
+                colgroup[left].style.width = w + "px";
             };
             const up = () => {
                 handle.removeEventListener("pointermove", move);

@@ -236,11 +236,13 @@ input:disabled, select:disabled {
     gap: 8px;
 }
 
-/* The table lives in a scroll wrapper. Rows keep their natural height. */
+/* The table lives in a scroll wrapper. Rows keep their natural height.
+   Both axes scroll: the default table fits the panel, and a manually
+   widened column overflows into a horizontal scrollbar on purpose. */
 #table-wrap {
     position: relative;
     flex: 1;
-    overflow-y: auto;
+    overflow: auto;
     min-width: 0;
 }
 
