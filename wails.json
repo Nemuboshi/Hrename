@@ -1,8 +1,10 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "Batch Rename Files",
-  "outputfilename": "hrename",
+  "name": "RenameLite",
+  "outputfilename": "renamelite",
   "wailsjsdir": "./frontend",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
   "author": {
     "name": "Nemuboshi"
   }

@@ -16,9 +16,6 @@ body {
     display: flex;
     flex-direction: column;
     user-select: none;
-    /* The window fits the content. Body sizes to its children, and the
-       JS at startup sets the window to this box plus the frame. */
-    width: fit-content;
 }
 
 input, select, textarea {
@@ -88,12 +85,14 @@ input, select, textarea {
 
 /* ---------- rule pages ---------- */
 
-/* All pages share one grid cell. The box is always as tall as the tallest
-   page, so switching tabs cannot change the layout height at all. */
+/* All pages share one grid cell, so the box is always as tall as the
+   tallest page (Whole). Switching tabs cannot move the footer buttons or
+   resize the window. The box is content-sized (not flex: 1): the window
+   fit reads the intrinsic height, and on platforms with larger fonts the
+   window grows with it instead of clipping. */
 #pages {
     display: grid;
-    flex: 1;
-    min-height: 0;
+    flex: none;
 }
 
 .page {
@@ -102,7 +101,6 @@ input, select, textarea {
     border: 1px solid #d0d0d0;
     border-radius: 6px;
     padding: 12px;
-    overflow-y: auto;
     visibility: hidden;
     pointer-events: none;
 }
@@ -110,6 +108,7 @@ input, select, textarea {
 .page.active {
     visibility: visible;
     pointer-events: auto;
+    overflow-y: auto; /* safety valve only; the fit sizes every page */
 }
 
 .block-label {
@@ -117,8 +116,7 @@ input, select, textarea {
     margin: 6px 0 2px 0;
 }
 
-.page > .block-label:first-child,
-.page > input:first-child {
+.page > .block-label:first-child {
     margin-top: 0;
 }
 
@@ -207,22 +205,35 @@ input:disabled, select:disabled {
 
 /* ---------- file list ---------- */
 
+/* The head row matches the height of the tab row on the left, so the two
+   bordered boxes start and end on the same lines. */
 #list-head {
     font-weight: 600;
-    padding: 2px;
+    height: 30px;
+    display: flex;
+    align-items: center;
 }
 
 #list-body {
-    /* Fills the column between the heading and the buttons. The column
-       height comes from the left panel, so both bottoms align. */
+    /* Fills the column between the heading and the panel bottom; the
+       panel stretches to the left panel's height, so both bottoms align.
+       The buttons live inside this box, under the table. */
     flex: 1;
     min-height: 200px;
     display: flex;
+    flex-direction: column;
     gap: 8px;
     background: #ffffff;
     border: 1px solid #d0d0d0;
     border-radius: 6px;
     padding: 8px;
+}
+
+#list-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 8px;
 }
 
 /* The table lives in a scroll wrapper. Rows keep their natural height. */
@@ -255,6 +266,28 @@ input:disabled, select:disabled {
     top: 0;
     background: #ffffff;
     z-index: 1;
+}
+
+/* Column drag handles: a thin strip in the header cell border. The th is
+   already sticky, which also makes it the offset parent. The last column
+   is fixed, so it has no handle. */
+.col-split {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -3px;
+    width: 7px;
+    cursor: col-resize;
+    z-index: 2;
+}
+
+.col-split:hover, .col-split.active {
+    background: rgba(0, 120, 215, 0.35);
+}
+
+body.col-resizing {
+    cursor: col-resize !important;
+    user-select: none;
 }
 
 #file-table th.col-result, #file-table td.col-result {
@@ -298,12 +331,11 @@ input:disabled, select:disabled {
     border: 1px solid #c5c5c5;
     border-radius: 3px;
     background: #fafafa;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
     cursor: default;
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 2px;
+    padding-left: 2px;
 }
 
 #move-col button:disabled {
@@ -311,23 +343,9 @@ input:disabled, select:disabled {
     cursor: default;
 }
 
-.tri {
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-}
-
-.tri.up {
-    border-bottom: 5px solid #555;
-}
-
-.tri.down {
-    border-top: 5px solid #555;
-}
-
 #list-buttons {
     display: flex;
+    justify-content: center;
     gap: 8px;
 }
 

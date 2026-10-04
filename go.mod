@@ -1,4 +1,4 @@
-module hrename
+module renamelite
 
 go 1.25.0
 

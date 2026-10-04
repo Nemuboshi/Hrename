@@ -2,8 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Batch Rename Files</title>
+    <title>RenameLite</title>
     <link href="/main.css" rel="stylesheet"/>
 </head>
 <body>
@@ -68,7 +67,7 @@
                 <label for="f-suffix">Add after name</label><input type="text" id="f-suffix"/>
             </div>
             <div class="checks">
-                <label><input type="checkbox" id="f-ext-add"/> Insert at a position</label>
+                <label><input type="checkbox" id="f-insert-at"/> Insert at a position</label>
             </div>
             <div class="sub" id="insert-block">
                 <div class="inline">
@@ -81,7 +80,7 @@
                 <label for="f-delete-text">Delete from name</label><input type="text" id="f-delete-text"/>
             </div>
             <div class="checks">
-                <label><input type="checkbox" id="f-ext-delete"/> Delete a range</label>
+                <label><input type="checkbox" id="f-delete-range"/> Delete a range</label>
             </div>
             <div class="sub inline" id="delete-block">
                 <span>From char</span><input type="number" id="f-delete-start" value="1" min="1"/>
@@ -96,7 +95,7 @@
             <p class="hint" id="regex-note">Use $1 or ${name} in the replacement for capture groups.</p>
             <label class="block-label" for="f-to-regex">Replace with</label>
             <input type="text" id="f-to-regex"/>
-            <p class="hint">Example: find (\w+)_(\d+) and replace with $2_$1</p>
+            <p class="hint">Example: find (\w+)_(\d+) and replace with ${2}_$1</p>
         </div>
         </div>
     </section>
@@ -104,29 +103,35 @@
     <section id="list-panel">
         <div id="list-head">File list</div>
         <div id="list-body">
-            <div id="table-wrap">
-                <table id="file-table">
-                    <thead>
-                    <tr><th>Original name</th><th>Preview</th><th class="col-result">Result</th></tr>
-                    </thead>
-                    <tbody id="file-tbody"></tbody>
-                </table>
-                <div id="empty-note" class="hidden">
-                    <p>The list is empty.</p>
-                    <p>Click Add to pick files, or drop files onto this window.</p>
+            <div id="list-main">
+                <div id="table-wrap">
+                    <table id="file-table">
+                        <thead>
+                        <tr>
+                            <th>Original name<div class="col-split" data-col="0"></div></th>
+                            <th>Preview<div class="col-split" data-col="1"></div></th>
+                            <th class="col-result">Result</th>
+                        </tr>
+                        </thead>
+                        <tbody id="file-tbody"></tbody>
+                    </table>
+                    <div id="empty-note" class="hidden">
+                        <p>The list is empty.</p>
+                        <p>Click Add to pick files, or drop files onto this window.</p>
+                    </div>
+                </div>
+                <div id="move-col">
+                    <button id="mv-top" title="Move to top" disabled>&#9650;&#9650;</button>
+                    <button id="mv-up" title="Move up" disabled>&#9650;</button>
+                    <button id="mv-down" title="Move down" disabled>&#9660;</button>
+                    <button id="mv-bottom" title="Move to bottom" disabled>&#9660;&#9660;</button>
                 </div>
             </div>
-            <div id="move-col">
-                <button id="mv-top" title="Move to top" disabled><span class="tri up"></span><span class="tri up"></span></button>
-                <button id="mv-up" title="Move up" disabled><span class="tri up"></span></button>
-                <button id="mv-down" title="Move down" disabled><span class="tri down"></span></button>
-                <button id="mv-bottom" title="Move to bottom" disabled><span class="tri down"></span><span class="tri down"></span></button>
+            <div id="list-buttons">
+                <button id="btn-add">Add</button>
+                <button id="btn-remove" disabled>Remove</button>
+                <button id="btn-remove-all" disabled>Remove All</button>
             </div>
-        </div>
-        <div id="list-buttons">
-            <button id="btn-add">Add</button>
-            <button id="btn-remove" disabled>Remove</button>
-            <button id="btn-remove-all" disabled>Remove All</button>
         </div>
     </section>
 </div>

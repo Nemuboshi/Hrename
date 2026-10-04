@@ -1,55 +1,72 @@
-# Hrename
+# RenameLite
 
-Hrename is a batch file rename tool for Windows. The backend is Go, the
-window is a Wails webview, and the front end is plain HTML, CSS, and
-JavaScript. You add files to a list, pick one rename rule, and see the new
-name of each file before you apply it.
-
-![The main window](docs/screenshot.png)
+A small batch rename tool. Add files, pick a rule, see every new name
+before anything touches the disk. Built with Go and Wails; the front end
+is plain HTML, CSS, and JavaScript embedded in the binary.
 
 ## Rules
 
-The tool has four rule pages:
+Four rule pages, one active at a time:
 
-- Whole. Build a new name from a template. `*` inserts the original name.
-  `#` inserts a serial number. You set the start value, the step, the digit
-  count, zero padding, and letter numbering (`a, b, c` instead of `1, 2, 3`).
-- Replace. Replace one string in the file name with another string.
-- Add or delete. Add a prefix, add a suffix, insert text at a position, delete
-  a string, or delete a range of characters.
-- Regex. Replace a regular expression match. The replacement can use `$1` and
-  `${name}` capture group references. The tool checks the expression as you
-  type and shows errors in red.
+- **Whole** — build the name from a template. `*` inserts the original
+  name, `#` inserts a serial number or letter (`a, b, c...`). Start,
+  step, digit width, zero padding, and extension are configurable.
+- **Replace** — replace every occurrence of a string in the name.
+- **Add/Delete** — prefix, suffix, insert at a position, delete a
+  string, or delete a character range. Acts on the name without the
+  extension.
+- **Regex** — replace a regular expression match; `$1` and `${name}`
+  group references work in the replacement. The expression is checked
+  as you type.
 
-Each page can change the case of the name, the extension, or both. When a new
-name already exists, you pick one policy: ask, overwrite, skip, or rename the
-new file automatically.
+Every page can lowercase or uppercase the name, the extension, or both.
+On a name conflict you choose: ask, overwrite, skip, or auto-rename
+(appends `(2)`, `(3)`, ...).
 
 ## Build
 
-You need Go and the Wails CLI:
+Requires Go, Node (the front end is TypeScript, compiled in place by
+`tsc` — no bundler, no runtime dependencies), and the Wails CLI:
 
 ```
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 wails build
 ```
 
-The executable is `build/bin/hrename.exe`. The front end needs no npm install
-and no bundler. Wails embeds `frontend/src` straight into the binary.
+`wails build` runs `npm ci` and `tsc` through the hooks in
+`wails.json`. The binary lands in `build/bin/renamelite(.exe)`. Platform
+notes: Wails builds natively per platform (WebView2 on Windows,
+WebKitGTK on Linux, Cocoa/WebKit on macOS), so each target is built on
+its own OS. The window sizes itself to its content at startup, so the
+layout adapts to each platform's font metrics.
+
+## Releases
+
+Push a tag named `v*` and the Release workflow builds all three
+platforms and publishes archives to the GitHub Release (CI on `main`
+runs vet, gofmt, race tests, and a coverage gate on Linux + Windows):
+
+```
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+Releases are not code-signed or notarized, so first launch shows a
+SmartScreen/Quarantine prompt.
 
 ## Test
 
-The engine tests are fast because they do not build the GUI.
+The rename engine is pure logic and tests run without building the GUI:
 
 ```
-go test ./internal/rename
+go test ./...
 ```
 
 ## Layout
 
-- `internal/rename` — the rename engine, pure logic, no file system access.
-- `app.go` — the bound state between the engine and the page.
-- `frontend/src` — the HTML, CSS, and JavaScript of the window.
+- `internal/rename` — the rename engine. Pure functions, no file system.
+- `app.go` / `main.go` — Wails bindings, list state, and the rename run.
+- `frontend/src` — the window: HTML, CSS, and a thin JS layer that only
+  moves form state to Go and table rows back.
 
 ## License
 

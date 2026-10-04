@@ -247,6 +247,11 @@ func Apply(rule Rule, name string, index int) string {
 	switch rule.Kind {
 	case RulePattern:
 		r := rule.Pattern
+		if r.Pattern == "" {
+			// An empty template builds no name. Treat it as no change,
+			// not as ".ext".
+			return name
+		}
 		stem, ext := SplitName(name)
 		out := strings.ReplaceAll(r.Pattern, "*", stem)
 		out = strings.ReplaceAll(out, "#", Serial(&r, index))

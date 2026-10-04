@@ -49,6 +49,17 @@ func TestPatternConstantName(t *testing.T) {
 	}
 }
 
+func TestPatternEmptyIsNoop(t *testing.T) {
+	// An empty template must not build ".ext" from the bare extension.
+	p := testPattern("")
+	p.HasExt = true
+	p.Extension = "txt"
+	r := Rule{Kind: RulePattern, Pattern: p}
+	if got := Apply(r, "cat.jpg", 0); got != "cat.jpg" {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestSerialStepAndStart(t *testing.T) {
 	p := testPattern("#")
 	p.Start = 10
@@ -108,15 +119,84 @@ func TestCaseOptions(t *testing.T) {
 		kind CaseKind
 		want string
 	}{
+		{"Foo.TXT", CaseUnchanged, "Foo.TXT"},
 		{"Foo.TXT", CaseNameLower, "foo.TXT"},
 		{"Foo.TXT", CaseExtLower, "Foo.txt"},
+		{"Foo.TXT", CaseBothLower, "foo.txt"},
+		{"Foo.TXT", CaseNameUpper, "FOO.TXT"},
+		{"Foo.txt", CaseExtUpper, "Foo.TXT"},
 		{"Foo.TXT", CaseBothUpper, "FOO.TXT"},
 		{"noext", CaseBothUpper, "NOEXT"},
+		{"noext", CaseExtLower, "noext"},
 	}
 	for _, c := range cases {
 		if got := ApplyCase(c.in, c.kind); got != c.want {
 			t.Errorf("ApplyCase(%q, %d) = %q, want %q", c.in, c.kind, got, c.want)
 		}
+	}
+}
+
+func TestSerialNegativePadKeepsSign(t *testing.T) {
+	p := testPattern("#")
+	p.Start = -5
+	p.Step = 0
+	// The width counts the whole number, sign included: "-5" pads to
+	// three characters, not three digits.
+	if got := Serial(&p, 0); got != "-05" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestSerialLettersFloorAtOne(t *testing.T) {
+	p := testPattern("#")
+	p.Letters = true
+	p.Start = 0 // below the first letter: clamps to a
+	if got := Serial(&p, 0); got != "a" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestInsertPastEndAppends(t *testing.T) {
+	r := Rule{Kind: RuleAddDelete, AddDelete: AddDeleteRule{
+		InsertAt: &Pos{At: 99, Text: "!"},
+	}}
+	if got := Apply(r, "a.txt", 0); got != "a!.txt" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestDeleteRangePastEnd(t *testing.T) {
+	r := Rule{Kind: RuleAddDelete, AddDelete: AddDeleteRule{
+		DeleteRange: &Range{Start: 3, Count: 99},
+	}}
+	if got := Apply(r, "abcdef.txt", 0); got != "ab.txt" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestAddDeleteAllOperationsCombined(t *testing.T) {
+	r := Rule{Kind: RuleAddDelete, AddDelete: AddDeleteRule{
+		Prefix: "P_", Suffix: "_S", DeleteText: "mid",
+	}}
+	if got := Apply(r, "a_midx.txt", 0); got != "P_a_x_S.txt" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestAutoRenameGivesUpAtLimit(t *testing.T) {
+	// Every candidate taken: the search must stop and report failure.
+	got := AutoRename("a.txt", func(string) bool { return true })
+	if got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestApplyRegexKeepsNameWhenNoChange(t *testing.T) {
+	// The GUI relies on Apply returning the input name untouched when a
+	// rule changes nothing, so it can show the original in the preview.
+	r := Rule{Kind: RuleReplace, Replace: ReplaceRule{From: "zzz", To: "y"}}
+	if got := Apply(r, "a.txt", 0); got != "a.txt" {
+		t.Errorf("got %q", got)
 	}
 }
 
@@ -188,6 +268,27 @@ func TestRegexNoMatchIsNoop(t *testing.T) {
 		Replacement: "x",
 	}}
 	if got := Apply(r, "a.txt", 0); got != "a.txt" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestApplyUnknownKindReturnsName(t *testing.T) {
+	// A zero Rule has no valid kind; Apply must not guess.
+	r := Rule{Kind: RuleKind(99)}
+	if got := Apply(r, "a.txt", 0); got != "a.txt" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestPositionsBelowOneClamp(t *testing.T) {
+	// The engine clamps defensively even though the GUI already sends
+	// positions of at least 1.
+	r := Rule{Kind: RuleAddDelete, AddDelete: AddDeleteRule{
+		InsertAt:    &Pos{At: 0, Text: "X"},
+		DeleteRange: &Range{Start: 0, Count: 1},
+	}}
+	// Insert before char 1, then delete char 1: the inserted X goes again.
+	if got := Apply(r, "abc.txt", 0); got != "abc.txt" {
 		t.Errorf("got %q", got)
 	}
 }
