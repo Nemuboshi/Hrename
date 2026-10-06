@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -372,18 +373,9 @@ func TestAutoResolveConflictsInline(t *testing.T) {
 		t.Fatal("auto-resolve should not ask")
 	}
 	names := listDir(t, dir)
-	if len(names) != 2 || !hasName(names, "same (2).txt") {
+	if len(names) != 2 || !slices.Contains(names, "same (2).txt") {
 		t.Errorf("files: %v", names)
 	}
-}
-
-func hasName(names []string, want string) bool {
-	for _, n := range names {
-		if n == want {
-			return true
-		}
-	}
-	return false
 }
 
 func TestRenameFailureRecorded(t *testing.T) {

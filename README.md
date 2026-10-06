@@ -40,34 +40,6 @@ WebKitGTK on Linux, Cocoa/WebKit on macOS), so each target is built on
 its own OS. The window sizes itself to its content at startup, so the
 layout adapts to each platform's font metrics.
 
-## Releases
-
-Push a tag named `v*` and the Release workflow builds all three
-platforms and publishes archives to the GitHub Release (CI on `main`
-runs vet, gofmt, race tests, and a coverage gate on Linux + Windows):
-
-```
-git tag v1.0.0 && git push origin v1.0.0
-```
-
-Releases are not code-signed or notarized, so first launch shows a
-SmartScreen/Quarantine prompt.
-
-## Test
-
-The rename engine is pure logic and tests run without building the GUI:
-
-```
-go test ./...
-```
-
-## Layout
-
-- `internal/rename` — the rename engine. Pure functions, no file system.
-- `app.go` / `main.go` — Wails bindings, list state, and the rename run.
-- `frontend/src` — the window: HTML, CSS, and a thin JS layer that only
-  moves form state to Go and table rows back.
-
 ## License
 
 MIT. See `LICENSE`.
